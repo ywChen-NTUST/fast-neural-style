@@ -62,6 +62,7 @@ def train(args):
     REDUCING_LR_PATIENCE = 10
     BEST_LOSS = 1000000.0
 
+    best_epoch = -1
     best_loss = BEST_LOSS
     reducing_lr_patience = REDUCING_LR_PATIENCE
     early_stop_patience = EARLY_STOP_PATIENCE
@@ -116,6 +117,7 @@ def train(args):
 
         train_avg_loss = (agg_content_loss + agg_style_loss) / (batch_id + 1)
         if train_avg_loss < best_loss:
+            best_epoch = e
             best_loss = train_avg_loss
             reducing_lr_patience = REDUCING_LR_PATIENCE
             early_stop_patience = EARLY_STOP_PATIENCE
@@ -127,7 +129,7 @@ def train(args):
             reducing_lr_patience = REDUCING_LR_PATIENCE
             for g in optimizer.param_groups:
                 g['lr'] = g['lr'] * 0.1
-            rd_lr = g['lr']
+            print(f'Did not improve training loss since epoch {e + 1}, reducing lr to {g["lr"]}')
         if early_stop_patience == 0:
             break
 
