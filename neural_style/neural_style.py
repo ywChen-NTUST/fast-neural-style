@@ -26,12 +26,15 @@ def train(args):
     else:
         kwargs = {}
 
-    transform = transforms.Compose([transforms.Scale(args.image_size),
-                                    transforms.CenterCrop(args.image_size),
-                                    transforms.ToTensor(),
-                                    transforms.Lambda(lambda x: x.mul(255))])
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Scale(args.image_size),
+        transforms.CenterCrop(args.image_size),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(degrees=(0, 30)),
+        transforms.Lambda(lambda x: x.mul(255))])
     train_dataset = datasets.ImageFolder(args.dataset, transform)
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, **kwargs)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, **kwargs)
 
     transformer = TransformerNet()
     optimizer = Adam(transformer.parameters(), args.lr)
@@ -54,6 +57,14 @@ def train(args):
     style_v = utils.subtract_imagenet_mean_batch(style_v, args.cuda)
     features_style = vgg(style_v)
     gram_style = [utils.gram_matrix(y) for y in features_style]
+
+    EARLY_STOP_PATIENCE = 21
+    REDUCING_LR_PATIENCE = 10
+    BEST_LOSS = 1000000.0
+
+    best_loss = BEST_LOSS
+    reducing_lr_patience = REDUCING_LR_PATIENCE
+    early_stop_patience = EARLY_STOP_PATIENCE
 
     for e in range(args.epochs):
         transformer.train()
@@ -95,14 +106,31 @@ def train(args):
             agg_content_loss += content_loss.data
             agg_style_loss += style_loss.data
 
-            if (batch_id + 1) % args.log_interval == 0:
-                mesg = "\rEpoch {}:\t[{}/{}]\tcontent: {:.6f}\tstyle: {:.6f}\ttotal: {:.6f}".format(
-                    e + 1, count, len(train_dataset),
-                                  agg_content_loss / (batch_id + 1),
-                                  agg_style_loss / (batch_id + 1),
-                                  (agg_content_loss + agg_style_loss) / (batch_id + 1)
-                )
-                print(mesg, end='')
+            mesg = "\rEpoch {}:\t[{}/{}]\tcontent: {:.6f}\tstyle: {:.6f}\ttotal: {:.6f}".format(
+                e + 1, count, len(train_dataset),
+                agg_content_loss / (batch_id + 1),
+                agg_style_loss / (batch_id + 1),
+                (agg_content_loss + agg_style_loss) / (batch_id + 1)
+            )
+            print(mesg, end='')
+
+        train_avg_loss = (agg_content_loss + agg_style_loss) / (batch_id + 1)
+        if train_avg_loss < best_loss:
+            best_loss = train_avg_loss
+            reducing_lr_patience = REDUCING_LR_PATIENCE
+            early_stop_patience = EARLY_STOP_PATIENCE
+        else:
+            reducing_lr_patience-=1
+            early_stop_patience-=1
+        
+        if reducing_lr_patience == 0:
+            reducing_lr_patience = REDUCING_LR_PATIENCE
+            for g in optimizer.param_groups:
+                g['lr'] = g['lr'] * 0.1
+            rd_lr = g['lr']
+        if early_stop_patience == 0:
+            break
+
         print('')
 
     # save model
