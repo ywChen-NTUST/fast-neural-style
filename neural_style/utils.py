@@ -4,7 +4,8 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.autograd import Variable
-from torch.utils.serialization import load_lua
+import torchvision.models as models
+# from torch.utils.serialization import load_lua
 
 from vgg16 import Vgg16
 
@@ -44,9 +45,11 @@ def gram_matrix(y):
     return gram
 
 
-def subtract_imagenet_mean_batch(batch):
+def subtract_imagenet_mean_batch(batch, is_cuda):
     tensortype = type(batch.data)
     mean = tensortype(batch.data.size())
+    if is_cuda:
+        mean = mean.cuda()
     mean[:, 0, :, :] = 103.939
     mean[:, 1, :, :] = 116.779
     mean[:, 2, :, :] = 123.680
@@ -64,11 +67,15 @@ def preprocess_batch(batch):
 
 def init_vgg16(model_folder):
     if not os.path.exists(os.path.join(model_folder, 'vgg16.weight')):
-        if not os.path.exists(os.path.join(model_folder, 'vgg16.t7')):
-            os.system(
-                'wget https://www.dropbox.com/s/76l3rt4kyi3s8x7/vgg16.t7?dl=1 -O ' + os.path.join(model_folder, 'vgg16.t7'))
-        vgglua = load_lua(os.path.join(model_folder, 'vgg16.t7'))
+        # if not os.path.exists(os.path.join(model_folder, 'vgg16.t7')):
+        #     os.system(
+        #         'wget https://www.dropbox.com/s/76l3rt4kyi3s8x7/vgg16.t7?dl=1 -O ' + os.path.join(model_folder, 'vgg16.t7'))
+        # vgglua = load_lua(os.path.join(model_folder, 'vgg16.t7'))
+        vggpre = models.vgg16(pretrained=True)
         vgg = Vgg16()
-        for (src, dst) in zip(vgglua.parameters()[0], vgg.parameters()):
+        for (src, dst) in zip(vggpre.parameters(), vgg.parameters()):
+            print('src', src.size())
+            print('dst', dst.size())
+            print('--------------------')
             dst.data[:] = src
         torch.save(vgg.state_dict(), os.path.join(model_folder, 'vgg16.weight'))
