@@ -96,13 +96,14 @@ def train(args):
             agg_style_loss += style_loss.data
 
             if (batch_id + 1) % args.log_interval == 0:
-                mesg = "{}\tEpoch {}:\t[{}/{}]\tcontent: {:.6f}\tstyle: {:.6f}\ttotal: {:.6f}".format(
-                    time.ctime(), e + 1, count, len(train_dataset),
+                mesg = "\rEpoch {}:\t[{}/{}]\tcontent: {:.6f}\tstyle: {:.6f}\ttotal: {:.6f}".format(
+                    e + 1, count, len(train_dataset),
                                   agg_content_loss / (batch_id + 1),
                                   agg_style_loss / (batch_id + 1),
                                   (agg_content_loss + agg_style_loss) / (batch_id + 1)
                 )
-                print(mesg)
+                print(mesg, end='')
+        print('')
 
     # save model
     transformer.eval()
