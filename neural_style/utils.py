@@ -74,8 +74,5 @@ def init_vgg16(model_folder):
         vggpre = models.vgg16(pretrained=True)
         vgg = Vgg16()
         for (src, dst) in zip(vggpre.parameters(), vgg.parameters()):
-            print('src', src.size())
-            print('dst', dst.size())
-            print('--------------------')
             dst.data[:] = src
         torch.save(vgg.state_dict(), os.path.join(model_folder, 'vgg16.weight'))
