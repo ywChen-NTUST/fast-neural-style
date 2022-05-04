@@ -28,7 +28,7 @@ def train(args):
 
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Scale(args.image_size),
+        transforms.Resize(args.image_size),
         transforms.CenterCrop(args.image_size),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomRotation(degrees=(0, 30)),
